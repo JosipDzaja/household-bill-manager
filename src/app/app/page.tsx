@@ -43,7 +43,7 @@ export default async function DashboardPage({
       id,
       title,
       amount,
-      due_day,
+      due_date,
       currency,
       payer_member_id,
       bill_tags (
@@ -53,7 +53,7 @@ export default async function DashboardPage({
     )
     .eq("household_id", membership.household_id)
     .eq("is_active", true)
-    .order("due_day", { ascending: true });
+    .order("due_date", { ascending: true });
 
   const now = new Date();
   const dueSoonLimit = addDays(now, 7);
@@ -69,8 +69,7 @@ export default async function DashboardPage({
   const paidBillIds = new Set((paidThisMonth ?? []).map((p) => p.bill_id));
 
   const states = (bills ?? []).map((bill) => {
-    const lastDayInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const dueDate = new Date(now.getFullYear(), now.getMonth(), Math.min(bill.due_day, lastDayInMonth));
+    const dueDate = new Date(bill.due_date + "T00:00:00");
     const isPaid = paidBillIds.has(bill.id);
 
     let status: "upcoming" | "dueSoon" | "overdue" | "paid" = "upcoming";
@@ -181,7 +180,7 @@ export default async function DashboardPage({
                 <div>
                   <p className="font-medium text-foreground">{bill.title}</p>
                   <p className="text-sm text-muted">
-                    Due day {bill.due_day} •{" "}
+                    Due {bill.due_date} •{" "}
                     {formatCurrency(Number(bill.amount), bill.currency)}
                   </p>
                   {Array.isArray(bill.bill_tags) && bill.bill_tags.length > 0 ? (

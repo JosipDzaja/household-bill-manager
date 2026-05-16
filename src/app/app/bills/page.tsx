@@ -1,5 +1,7 @@
+import { BillScannerForm } from "@/components/bill-scanner-form";
 import { btnPrimaryClassName, Card, inputClassName, SectionTitle } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
+import type { MemberOption } from "@/lib/types";
 import { billTagNameFromJoin, formatCurrency, formatDateRange } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { archiveBill, createBill } from "../actions";
@@ -43,6 +45,12 @@ export default async function BillsPage({
 
   const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]));
 
+  const memberOptions: MemberOption[] = (members ?? []).map((m) => ({
+    id: m.id,
+    user_id: m.user_id,
+    full_name: profileMap.get(m.user_id) ?? null,
+  }));
+
   const { data: householdTags } = await supabase
     .from("tags")
     .select("id, name")
@@ -56,11 +64,12 @@ export default async function BillsPage({
       id,
       title,
       amount,
-      due_day,
+      due_date,
       start_date,
       end_date,
       currency,
       is_active,
+      description,
       bill_tags (
         tags ( name )
       )
@@ -73,6 +82,14 @@ export default async function BillsPage({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <BillScannerForm
+          createBillAction={createBill}
+          members={memberOptions}
+          householdTags={householdTags ?? []}
+          defaultPayerMemberId={membership.id}
+        />
+      </Card>
       <Card>
         <SectionTitle
           title="Add bill"
@@ -95,6 +112,10 @@ export default async function BillsPage({
             <input name="title" required className={inputClassName} />
           </label>
           <label className="block text-sm">
+            Description
+            <textarea name="description" rows={2} className={inputClassName} />
+          </label>
+          <label className="block text-sm">
             Amount
             <input
               name="amount"
@@ -107,13 +128,11 @@ export default async function BillsPage({
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-sm">
-              Due day
+              Due date
               <input
-                name="due_day"
+                name="due_date"
                 required
-                type="number"
-                min="1"
-                max="31"
+                type="date"
                 className={inputClassName}
               />
             </label>
@@ -203,8 +222,11 @@ export default async function BillsPage({
               >
                 <div>
                   <p className="font-medium text-foreground">{bill.title}</p>
+                  {bill.description ? (
+                    <p className="text-xs text-muted">{bill.description}</p>
+                  ) : null}
                   <p className="text-sm text-muted">
-                    Day {bill.due_day} • {formatCurrency(Number(bill.amount), bill.currency)} •{" "}
+                    Due {bill.due_date} • {formatCurrency(Number(bill.amount), bill.currency)} •{" "}
                     {formatDateRange(bill.start_date, bill.end_date)}
                   </p>
                   {Array.isArray(bill.bill_tags) && bill.bill_tags.length > 0 ? (

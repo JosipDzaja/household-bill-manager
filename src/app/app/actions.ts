@@ -197,14 +197,15 @@ export async function createBill(formData: FormData) {
 
   const title = getString(formData, "title");
   const amount = getNumber(formData, "amount");
-  const dueDay = getNumber(formData, "due_day");
+  const dueDate = getString(formData, "due_date");
   const startDate = getString(formData, "start_date");
   const endDate = getString(formData, "end_date");
   const currency = getString(formData, "currency") || "EUR";
   const payerMemberId = getString(formData, "payer_member_id") || membership.id;
   const newTagsRaw = getString(formData, "new_tags");
+  const description = getString(formData, "description") || null;
 
-  if (!title || amount <= 0 || dueDay < 1 || dueDay > 31) {
+  if (!title || amount <= 0 || !dueDate || isNaN(Date.parse(dueDate))) {
     redirect("/app/bills?error=Invalid bill values");
   }
 
@@ -267,11 +268,12 @@ export async function createBill(formData: FormData) {
       household_id: membership.household_id,
       title,
       amount,
-      due_day: dueDay,
+      due_date: dueDate,
       start_date: startDate,
       end_date: endDate,
       currency,
       payer_member_id: payerMemberId,
+      description,
     })
     .select("id")
     .single();
