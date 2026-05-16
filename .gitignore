@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.nyc_output
 
 # next.js
 /.next/
@@ -19,9 +20,15 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
 *.pem
 
 # debug
@@ -29,13 +36,31 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.*
+!.env.example
+!.env.test
 
 # vercel
 .vercel
 
+# MCP config (contains credentials)
+.mcp.json
+.claude/settings.local.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editors
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+ehthumbs.db
+Desktop.ini
