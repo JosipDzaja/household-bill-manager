@@ -1,6 +1,6 @@
 import { BillScannerForm } from "@/components/bill-scanner-form";
 import { btnPrimaryClassName, Card, inputClassName, SectionTitle } from "@/components/ui";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import type { MemberOption } from "@/lib/types";
 import { billTagNameFromJoin, formatCurrency, formatDateRange } from "@/lib/utils";
 import { redirect } from "next/navigation";
@@ -13,14 +13,15 @@ export default async function BillsPage({
 }: {
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
 
   if (!user) {
     redirect("/login");
   }
+
+  const supabase = await createClient();
 
   const { data: membership } = await supabase
     .from("household_members")
@@ -32,10 +33,37 @@ export default async function BillsPage({
     redirect("/onboarding");
   }
 
-  const { data: members } = await supabase
-    .from("household_members")
-    .select("id, user_id")
-    .eq("household_id", membership.household_id);
+  const [{ data: members }, { data: householdTags }, { data: bills }] = await Promise.all([
+    supabase
+      .from("household_members")
+      .select("id, user_id")
+      .eq("household_id", membership.household_id),
+    supabase
+      .from("tags")
+      .select("id, name")
+      .eq("household_id", membership.household_id)
+      .order("name"),
+    supabase
+      .from("bills")
+      .select(
+        `
+        id,
+        title,
+        amount,
+        due_date,
+        start_date,
+        end_date,
+        currency,
+        is_active,
+        description,
+        bill_tags (
+          tags ( name )
+        )
+      `,
+      )
+      .eq("household_id", membership.household_id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const profileIds = (members ?? []).map((member) => member.user_id);
   const { data: profiles } = await supabase
@@ -50,33 +78,6 @@ export default async function BillsPage({
     user_id: m.user_id,
     full_name: profileMap.get(m.user_id) ?? null,
   }));
-
-  const { data: householdTags } = await supabase
-    .from("tags")
-    .select("id, name")
-    .eq("household_id", membership.household_id)
-    .order("name");
-
-  const { data: bills } = await supabase
-    .from("bills")
-    .select(
-      `
-      id,
-      title,
-      amount,
-      due_date,
-      start_date,
-      end_date,
-      currency,
-      is_active,
-      description,
-      bill_tags (
-        tags ( name )
-      )
-    `,
-    )
-    .eq("household_id", membership.household_id)
-    .order("created_at", { ascending: false });
 
   const query = await searchParams;
 

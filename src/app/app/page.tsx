@@ -1,5 +1,5 @@
 import { btnPrimaryClassName, btnSecondaryClassName, Card, SectionTitle } from "@/components/ui";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { billTagNameFromJoin, formatCurrency } from "@/lib/utils";
 import { addDays, isAfter, isBefore } from "date-fns";
 import Link from "next/link";
@@ -11,14 +11,15 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ error?: string; message?: string; invite?: string }>;
 }) {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
 
   if (!user) {
     redirect("/login");
   }
+
+  const supabase = await createClient();
 
   const { data: membership } = await supabase
     .from("household_members")
@@ -30,41 +31,42 @@ export default async function DashboardPage({
     redirect("/onboarding");
   }
 
-  const { data: household } = await supabase
-    .from("households")
-    .select("name")
-    .eq("id", membership.household_id)
-    .single();
-
-  const { data: bills } = await supabase
-    .from("bills")
-    .select(
-      `
-      id,
-      title,
-      amount,
-      due_date,
-      currency,
-      payer_member_id,
-      bill_tags (
-        tags ( name )
-      )
-    `,
-    )
-    .eq("household_id", membership.household_id)
-    .eq("is_active", true)
-    .order("due_date", { ascending: true });
-
   const now = new Date();
-  const dueSoonLimit = addDays(now, 7);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
-  const { data: paidThisMonth } = await supabase
-    .from("bill_payments")
-    .select("id, bill_id")
-    .gte("paid_at", monthStart)
-    .lte("paid_at", monthEnd);
+  const [{ data: household }, { data: bills }, { data: paidThisMonth }] = await Promise.all([
+    supabase
+      .from("households")
+      .select("name")
+      .eq("id", membership.household_id)
+      .single(),
+    supabase
+      .from("bills")
+      .select(
+        `
+        id,
+        title,
+        amount,
+        due_date,
+        currency,
+        payer_member_id,
+        bill_tags (
+          tags ( name )
+        )
+      `,
+      )
+      .eq("household_id", membership.household_id)
+      .eq("is_active", true)
+      .order("due_date", { ascending: true }),
+    supabase
+      .from("bill_payments")
+      .select("id, bill_id")
+      .gte("paid_at", monthStart)
+      .lte("paid_at", monthEnd),
+  ]);
+
+  const dueSoonLimit = addDays(now, 7);
 
   const paidBillIds = new Set((paidThisMonth ?? []).map((p) => p.bill_id));
 

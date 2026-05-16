@@ -1,20 +1,20 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 async function requireUser() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
 
   if (!user) {
     redirect("/login");
   }
 
+  const supabase = await createClient();
   return { supabase, user };
 }
 
@@ -151,45 +151,42 @@ async function ensureTagIds(
   householdId: string,
   tagNames: string[],
 ): Promise<string[]> {
-  const ids: string[] = [];
-  for (const name of tagNames) {
-    const { data: existing } = await supabase
-      .from("tags")
-      .select("id")
-      .eq("household_id", householdId)
-      .eq("name", name)
-      .maybeSingle();
+  // Look up all existing tags in one query
+  const { data: existing } = await supabase
+    .from("tags")
+    .select("id, name")
+    .eq("household_id", householdId)
+    .in("name", tagNames);
 
-    if (existing?.id) {
-      ids.push(existing.id);
-      continue;
-    }
+  const existingMap = new Map((existing ?? []).map((t) => [t.name, t.id]));
+  const toInsert = tagNames.filter((n) => !existingMap.has(n));
 
-    const { data: inserted, error } = await supabase
-      .from("tags")
-      .insert({ household_id: householdId, name })
-      .select("id")
-      .single();
-
-    if (inserted?.id) {
-      ids.push(inserted.id);
-      continue;
-    }
-
-    if (error?.code === "23505") {
-      const { data: again } = await supabase
-        .from("tags")
-        .select("id")
-        .eq("household_id", householdId)
-        .eq("name", name)
-        .maybeSingle();
-      if (again?.id) ids.push(again.id);
-      continue;
-    }
-
-    throw new Error(error?.message ?? "Could not save tags");
+  if (toInsert.length === 0) {
+    return tagNames.map((n) => existingMap.get(n)!);
   }
-  return ids;
+
+  const { data: inserted, error } = await supabase
+    .from("tags")
+    .insert(toInsert.map((name) => ({ household_id: householdId, name })))
+    .select("id, name");
+
+  if (error) {
+    // On unique-constraint race, re-fetch the conflicting rows
+    if (error.code === "23505") {
+      const { data: retry } = await supabase
+        .from("tags")
+        .select("id, name")
+        .eq("household_id", householdId)
+        .in("name", toInsert);
+      for (const row of retry ?? []) existingMap.set(row.name, row.id);
+    } else {
+      throw new Error(error.message ?? "Could not save tags");
+    }
+  }
+
+  for (const row of inserted ?? []) existingMap.set(row.name, row.id);
+
+  return tagNames.map((n) => existingMap.get(n)!).filter(Boolean);
 }
 
 export async function createBill(formData: FormData) {
