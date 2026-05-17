@@ -1,6 +1,6 @@
 import { BillScannerForm } from "@/components/bill-scanner-form";
 import { btnPrimaryClassName, Card, inputClassName, SectionTitle } from "@/components/ui";
-import { createClient, getAuthUser } from "@/lib/supabase/server";
+import { createClient, getAuthUser, getMembership } from "@/lib/supabase/server";
 import type { MemberOption } from "@/lib/types";
 import { billTagNameFromJoin, formatCurrency, formatDateRange } from "@/lib/utils";
 import { redirect } from "next/navigation";
@@ -23,11 +23,7 @@ export default async function BillsPage({
 
   const supabase = await createClient();
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("id, household_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: membership } = await getMembership(user.id);
 
   if (!membership) {
     redirect("/onboarding");

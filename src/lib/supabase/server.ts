@@ -28,3 +28,12 @@ export const getAuthUser = cache(async () => {
   const supabase = await createClient();
   return supabase.auth.getUser();
 });
+
+export const getMembership = cache(async (userId: string) => {
+  const supabase = await createClient();
+  return supabase
+    .from("household_members")
+    .select("id, household_id, role")
+    .eq("user_id", userId)
+    .maybeSingle();
+});

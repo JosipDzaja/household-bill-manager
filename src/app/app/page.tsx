@@ -1,5 +1,5 @@
 import { btnPrimaryClassName, Card, SectionTitle } from "@/components/ui";
-import { createClient, getAuthUser } from "@/lib/supabase/server";
+import { createClient, getAuthUser, getMembership } from "@/lib/supabase/server";
 import { addDays, isBefore } from "date-fns";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -20,11 +20,7 @@ export default async function HomePage({
 
   const supabase = await createClient();
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("id, household_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: membership } = await getMembership(user.id);
 
   if (!membership) {
     redirect("/onboarding");
