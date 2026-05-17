@@ -54,7 +54,8 @@ export async function sendResetPassword(formData: FormData) {
   const supabase = await createClient();
 
   const h = await headers();
-  const origin = h.get("origin") ?? "http://localhost:3000";
+  const origin =
+    h.get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=/app/settings`,
@@ -74,7 +75,8 @@ export async function signInWithGoogle(formData: FormData) {
   const errorBase = fromSignup ? "/signup" : "/login";
 
   const h = await headers();
-  const origin = h.get("origin") ?? "http://localhost:3000";
+  const origin =
+    h.get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const callback = new URL("/auth/callback", origin);
   callback.searchParams.set("next", next);
 
