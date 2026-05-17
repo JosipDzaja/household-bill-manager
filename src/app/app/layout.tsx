@@ -18,7 +18,7 @@ export default async function AppLayout({
       <header className="border-b border-border bg-card shadow-[0_1px_0_rgb(28_25_23/0.04)]">
         <AppNav email={user.email ?? ""} />
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:pb-6">{children}</main>
     </div>
   );
 }
