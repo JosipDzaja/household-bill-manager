@@ -146,7 +146,7 @@ export async function BillTable({
     <>
       <Card>
         <SectionTitle title="Filters" />
-        <Suspense>
+        <Suspense fallback={<div className="h-10 animate-pulse rounded bg-surface" />}>
           <BillTableFilters
             tags={tagOptions}
             members={memberOptions}

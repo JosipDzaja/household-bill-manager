@@ -225,6 +225,24 @@ export async function createBill(formData: FormData) {
     redirect("/app/bills?error=Invalid payer");
   }
 
+  const { data: duplicate } = await supabase
+    .from("bills")
+    .select("id")
+    .eq("household_id", membership.household_id)
+    .ilike("title", title)
+    .eq("due_date", dueDate)
+    .eq("amount", amount)
+    .eq("start_date", startDate)
+    .eq("end_date", endDate)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (duplicate) {
+    redirect(
+      `/app/bills?error=${encodeURIComponent("A bill with this title, amount, period and due date already exists")}`,
+    );
+  }
+
   const candidateIds = uniqueCandidateTagIds(formData);
   let verifiedIds: string[] = [];
   if (candidateIds.length > 0) {
